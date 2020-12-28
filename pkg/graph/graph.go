@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"encoding/json"
 	"github.com/hourglasshoro/graphmize/pkg/file"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
@@ -8,19 +9,19 @@ import (
 )
 
 type Graph struct {
-	ApiVersion string
-	Kind       string
-	FileName   string
-	Resources  []*Graph
-	//Patches               []*Graph
-	//PatchesStrategicMerge []*Graph
+	ApiVersion string  `json:"apiVersion"`
+	Kind       string  `json:"kind"`
+	FileName   string  `json:"fileName"`
+	Resources  []Graph `json:"resources"`
+	//Patches               []Graph
+	//PatchesStrategicMerge []Graph
 }
 
 func NewGraph(
 	apiVersion string,
 	kind string,
 	fileName string,
-	resources []*Graph,
+	resources []Graph,
 ) *Graph {
 	graph := new(Graph)
 	graph.ApiVersion = apiVersion
@@ -28,6 +29,12 @@ func NewGraph(
 	graph.FileName = fileName
 	graph.Resources = resources
 	return graph
+}
+
+// Marshal converts to json
+func (g *Graph) Marshal() ([]byte, error) {
+	result, err := json.Marshal(g)
+	return result, err
 }
 
 // Find determines if an element exists in the slice
@@ -42,7 +49,7 @@ func Find(slice []string, val string) bool {
 
 // BuildGraph recursively calls resources from the root KustomizationFile to build a Graph
 func BuildGraph(ctx file.Context, directoryPath string, kustomizationFile file.KustomizationFile) (*Graph, error) {
-	var resources []*Graph
+	var resources []Graph
 	for _, resource := range kustomizationFile.Resources {
 
 		resourcePath := path.Join(directoryPath, resource)
@@ -68,7 +75,7 @@ func BuildGraph(ctx file.Context, directoryPath string, kustomizationFile file.K
 			if err != nil {
 				return nil, errors.Wrap(err, "cannot buildGraph for childKustomizationFile")
 			}
-			resources = append(resources, graph)
+			resources = append(resources, *graph)
 
 		} else if exist := Find(file.KustomizationFileNames, resource); exist {
 			// For kustomizationFile
@@ -79,7 +86,7 @@ func BuildGraph(ctx file.Context, directoryPath string, kustomizationFile file.K
 			if err != nil {
 				return nil, errors.Wrap(err, "cannot get childResourceFile")
 			}
-			resources = append(resources, NewGraph(childResourceFile.ApiVersion, childResourceFile.Kind, resource, nil))
+			resources = append(resources, *NewGraph(childResourceFile.ApiVersion, childResourceFile.Kind, resource, []Graph{}))
 		}
 	}
 	graph := NewGraph(kustomizationFile.ApiVersion, kustomizationFile.Kind, directoryPath, resources)
