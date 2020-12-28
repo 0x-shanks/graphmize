@@ -24,29 +24,18 @@ var KustomizationFileNames = []string{
 	"Kustomization",
 }
 
-type kustomizationFileContext struct {
-	fileSystem afero.Fs
-}
-
-// New returns a new context to interact with kustomization files
-func New() *kustomizationFileContext {
-	defaultFileSystem := afero.NewOsFs()
-
-	return NewFromFileSystem(defaultFileSystem)
-}
-
 // NewFromFileSystem creates a context to interact with kustomization files from a provided file system
-func NewFromFileSystem(fileSystem afero.Fs) *kustomizationFileContext {
-	return &kustomizationFileContext{
-		fileSystem: fileSystem,
+func NewFromFileSystem(fileSystem afero.Fs) *Context {
+	return &Context{
+		FileSystem: fileSystem,
 	}
 }
 
-// GetFromDirectory attempts to read a kustomization.yaml file from the given directory
-func (k *kustomizationFileContext) GetFromDirectory(directoryPath string) (*KustomizationFile, error) {
+// GetKustomizationFromDirectory attempts to read a kustomization.yaml file from the given directory
+func (c *Context) GetKustomizationFromDirectory(directoryPath string) (*KustomizationFile, error) {
 	var kustomizationFile KustomizationFile
 
-	fileUtility := &afero.Afero{Fs: k.fileSystem}
+	fileUtility := &afero.Afero{Fs: c.FileSystem}
 
 	fileFoundCount := 0
 	kustomizationFilePath := ""
