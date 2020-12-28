@@ -41,11 +41,13 @@ func (g *Graph) Marshal() ([]byte, error) {
 	return result, err
 }
 
+// ToTree displays a tree structure
 func (g *Graph) ToTree() {
 	var isLastLoopFlags []bool
 	treeRecursion(g, isLastLoopFlags)
 }
 
+// treeRecursion calls output for each hierarchy
 func treeRecursion(g *Graph, isLastLoopFlags []bool) {
 	output(g.FileName, isLastLoopFlags)
 
@@ -62,6 +64,7 @@ func treeRecursion(g *Graph, isLastLoopFlags []bool) {
 	}
 }
 
+// output prints the result to the standard output
 func output(data string, isLastLoopFlags []bool) {
 	pathLine := ""
 	maxCount := len(isLastLoopFlags)
