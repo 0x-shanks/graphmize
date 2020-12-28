@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/afero"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 )
 
@@ -124,7 +125,7 @@ func BuildGraph(ctx file.Context, rootPath string) (*Graph, error) {
 						return errors.Wrap(err, "cannot get kustomization file")
 					}
 
-					graph, err := BuildGraphFromDir(ctx, kustomizationFilePath, *kustomizationFile, parentNodes, childNodes)
+					graph, err := BuildGraphFromDir(ctx, rootPath, kustomizationFilePath, *kustomizationFile, parentNodes, childNodes)
 					if err != nil {
 						return errors.Wrap(err, "cannot get graph")
 					}
@@ -150,7 +151,7 @@ func BuildGraph(ctx file.Context, rootPath string) (*Graph, error) {
 }
 
 // BuildGraphFromDir builds and returns a dependency tree from a kustomization file under the specified directory
-func BuildGraphFromDir(ctx file.Context, directoryPath string, kustomizationFile file.KustomizationFile, parentNodes map[string]*Graph, childNodes map[string]bool) (*Graph, error) {
+func BuildGraphFromDir(ctx file.Context, rootPath string, directoryPath string, kustomizationFile file.KustomizationFile, parentNodes map[string]*Graph, childNodes map[string]bool) (*Graph, error) {
 	var resources []Graph
 	for _, resource := range kustomizationFile.Resources {
 
@@ -176,7 +177,7 @@ func BuildGraphFromDir(ctx file.Context, directoryPath string, kustomizationFile
 				if err != nil {
 					return nil, errors.Wrap(err, "cannot get childKustomizationFile")
 				}
-				graph, err = BuildGraphFromDir(ctx, resourcePath, *childKustomizationFile, parentNodes, childNodes)
+				graph, err = BuildGraphFromDir(ctx, rootPath, resourcePath, *childKustomizationFile, parentNodes, childNodes)
 				if err != nil {
 					return nil, errors.Wrap(err, "cannot buildGraph for childKustomizationFile")
 				}
@@ -199,6 +200,10 @@ func BuildGraphFromDir(ctx file.Context, directoryPath string, kustomizationFile
 			resources = append(resources, *NewGraph(childResourceFile.ApiVersion, childResourceFile.Kind, resource, []Graph{}))
 		}
 	}
-	graph := NewGraph(kustomizationFile.ApiVersion, kustomizationFile.Kind, directoryPath, resources)
+	relPath, err := filepath.Rel(rootPath, directoryPath)
+	if err != nil {
+		return nil, err
+	}
+	graph := NewGraph(kustomizationFile.ApiVersion, kustomizationFile.Kind, relPath, resources)
 	return graph, nil
 }
