@@ -23,6 +23,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"os"
+	"path"
 
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
@@ -41,11 +42,15 @@ You can open a dashboard in your browser and see a graph of dependencies represe
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	RunE: func(cmd *cobra.Command, args []string) error {
+		source := cmd.Flag("source").Value.String()
 		defaultFileSystem := afero.NewOsFs()
 		ctx := file.NewContext(defaultFileSystem)
 		currentDir, err := os.Getwd()
 		if err != nil {
 			return errors.Wrap(err, "cannot get current dir")
+		}
+		if source != "" {
+			currentDir = path.Join(currentDir, source)
 		}
 		graph, err := graph.BuildGraph(*ctx, currentDir)
 		if err != nil {
@@ -77,6 +82,8 @@ func init() {
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+
+	rootCmd.Flags().StringP("source", "s", "", "Directory to search")
 }
 
 // initConfig reads in config file and ENV variables if set.
