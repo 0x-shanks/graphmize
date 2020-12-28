@@ -17,6 +17,10 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/hourglasshoro/graphmize/pkg/file"
+	"github.com/hourglasshoro/graphmize/pkg/graph"
+	"github.com/pkg/errors"
+	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"os"
 
@@ -36,7 +40,20 @@ You can open a dashboard in your browser and see a graph of dependencies represe
 `,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
-	//	Run: func(cmd *cobra.Command, args []string) { },
+	RunE: func(cmd *cobra.Command, args []string) error {
+		defaultFileSystem := afero.NewOsFs()
+		ctx := file.NewContext(defaultFileSystem)
+		currentDir, err := os.Getwd()
+		if err != nil {
+			return errors.Wrap(err, "cannot get current dir")
+		}
+		graph, err := graph.BuildGraph(*ctx, currentDir)
+		if err != nil {
+			return errors.Wrap(err, "cannot build graph")
+		}
+		graph.ToTree()
+		return nil
+	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

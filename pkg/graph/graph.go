@@ -2,6 +2,7 @@ package graph
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/hourglasshoro/graphmize/pkg/file"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
@@ -37,6 +38,50 @@ func NewGraph(
 func (g *Graph) Marshal() ([]byte, error) {
 	result, err := json.Marshal(g)
 	return result, err
+}
+
+func (g *Graph) ToTree() {
+	var isLastLoopFlags []bool
+	treeRecursion(g, isLastLoopFlags)
+}
+
+func treeRecursion(g *Graph, isLastLoopFlags []bool) {
+	output(g.FileName, isLastLoopFlags)
+
+	resources := g.Resources
+	maxCount := len(resources)
+
+	for i := 0; i < maxCount; i++ {
+		isLastLoop := false
+		if i == (maxCount - 1) {
+			isLastLoop = true
+		}
+		flags := append(isLastLoopFlags, []bool{isLastLoop}...)
+		treeRecursion(&resources[i], flags)
+	}
+}
+
+func output(data string, isLastLoopFlags []bool) {
+	pathLine := ""
+	maxCount := len(isLastLoopFlags)
+	for i := 0; i < maxCount; i++ {
+		isLast := isLastLoopFlags[i]
+		if i == (maxCount - 1) {
+			if isLast {
+				pathLine += "└── "
+			} else {
+				pathLine += "├── "
+			}
+		} else {
+			if isLast {
+				pathLine += "    "
+			} else {
+				pathLine += "│   "
+			}
+		}
+	}
+	pathLine += data
+	fmt.Println(pathLine)
 }
 
 // Find determines if an element exists in the slice
@@ -112,17 +157,13 @@ func BuildGraphFromDir(ctx file.Context, directoryPath string, kustomizationFile
 		resourcePath := path.Join(directoryPath, resource)
 		isExist, err := afero.Exists(ctx.FileSystem, resourcePath)
 		if err != nil {
-			return nil, errors.Wrap(err, "cannot determine if resourcePath is a directory")
-		}
-		if !isExist {
-			return nil, errors.New("the file or directory is not found")
+			return nil, errors.Wrap(err, "cannot determine if resourcePath exist")
 		}
 
 		isDir, err := afero.IsDir(ctx.FileSystem, resourcePath)
-		if err != nil {
-			return nil, errors.Wrap(err, "cannot determine if resourcePath is a directory")
-		}
-		if isDir {
+		if !isExist || err != nil {
+			resources = append(resources, *NewGraph("Unknown Resource", "Unknown Resource", resource, []Graph{}))
+		} else if isDir {
 			// For directories
 
 			graph, isExplored := parentNodes[resourcePath]
