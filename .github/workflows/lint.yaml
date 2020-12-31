@@ -3,6 +3,8 @@ name: lint
 on:
   pull_request:
     types: [opened, synchronize]
+    paths:
+      - '**.go'
 
 jobs:
   golangci-lint:
