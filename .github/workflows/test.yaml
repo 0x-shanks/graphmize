@@ -2,9 +2,13 @@ name: test
 on:
   pull_request:
     types: [ opened, synchronize ]
+    paths:
+      - '**.go'
   push:
     branches:
       - master
+    paths:
+      - '**.go'
 
 jobs:
   test:
