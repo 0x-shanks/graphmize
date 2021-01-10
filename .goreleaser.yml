@@ -31,6 +31,7 @@ brews:
   - tap:
       owner: hourglasshoro
       name: homebrew-graphmize
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     folder: Formula
     homepage: https://github.com/hourglasshoro/graphmize
     description: Graphmize is a tool to visualize the dependencies of kustomize.
