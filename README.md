@@ -5,6 +5,7 @@ Graphmize is a tool to visualize the dependencies of kustomize.
 # Installation
 ### Homebrew
 ```
+brew tap hourglasshoro/homebrew-graphmize
 brew install graphmize
 ```
 ### Go
