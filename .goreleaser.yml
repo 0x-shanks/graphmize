@@ -28,7 +28,7 @@ changelog:
       - '^docs:'
       - '^test:'
 brews:
-  - github:
+  - tap:
       owner: hourglasshoro
       name: homebrew-graphmize
     folder: Formula
