@@ -39,6 +39,7 @@ var rootCmd = &cobra.Command{
 Graphmize is a tool to visualize the dependencies of kustomize.
 You can open a dashboard in your browser and see a graph of dependencies represented as a directed graph.
 `,
+	Version: "v0.1.1",
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	RunE: func(cmd *cobra.Command, args []string) error {
