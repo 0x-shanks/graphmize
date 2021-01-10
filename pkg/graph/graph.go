@@ -106,7 +106,7 @@ func BuildGraph(ctx file.Context, rootPath string) (*Graph, error) {
 	parentNodes := map[string]*Graph{}
 
 	// childNodes determine whether to put in parentNode
-	childNodes := map[string]bool{}
+	childNodes := map[string]*Graph{}
 
 	err := afero.Walk(ctx.FileSystem, rootPath,
 		func(path string, info os.FileInfo, err error) error {
@@ -154,7 +154,7 @@ func BuildGraph(ctx file.Context, rootPath string) (*Graph, error) {
 }
 
 // BuildGraphFromDir builds and returns a dependency tree from a kustomization file under the specified directory
-func BuildGraphFromDir(ctx file.Context, rootPath string, directoryPath string, kustomizationFile file.KustomizationFile, parentNodes map[string]*Graph, childNodes map[string]bool) (*Graph, error) {
+func BuildGraphFromDir(ctx file.Context, rootPath string, directoryPath string, kustomizationFile file.KustomizationFile, parentNodes map[string]*Graph, childNodes map[string]*Graph) (*Graph, error) {
 	var resources []Graph
 	for _, resource := range kustomizationFile.Resources {
 
@@ -170,26 +170,30 @@ func BuildGraphFromDir(ctx file.Context, rootPath string, directoryPath string, 
 		} else if isDir {
 			// For directories
 
-			graph, isExplored := parentNodes[resourcePath]
-
 			// If a file at this path is already registered as a parent when searching
-			if isExplored {
+			if graph, isParent := parentNodes[resourcePath]; isParent {
 				delete(parentNodes, resourcePath)
+				resources = append(resources, *graph)
+
+				// Register nodes that have already been explored
+				childNodes[resourcePath] = graph
+			} else if graph, isChild := childNodes[resourcePath]; isChild {
+				// If a file at this path is already registered as a child when searching
+				resources = append(resources, *graph)
 			} else {
 				childKustomizationFile, err := ctx.GetKustomizationFromDirectory(resourcePath)
 				if err != nil {
 					return nil, errors.Wrap(err, "cannot get childKustomizationFile")
 				}
-				graph, err = BuildGraphFromDir(ctx, rootPath, resourcePath, *childKustomizationFile, parentNodes, childNodes)
+				graph, err := BuildGraphFromDir(ctx, rootPath, resourcePath, *childKustomizationFile, parentNodes, childNodes)
 				if err != nil {
 					return nil, errors.Wrap(err, "cannot buildGraph for childKustomizationFile")
 				}
+				resources = append(resources, *graph)
+
+				// Register nodes that have already been explored
+				childNodes[resourcePath] = graph
 			}
-
-			resources = append(resources, *graph)
-
-			// Register nodes that have already been explored
-			childNodes[resourcePath] = true
 
 		} else if exist, _ := Find(file.KustomizationFileNames, resource); exist {
 			// For kustomizationFile
