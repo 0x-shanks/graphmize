@@ -29,16 +29,19 @@ The actual directory structure, manifest, etc. can be found on [this page](https
 If you run Graphmize with this directory specified, the output will look like this.
 
 ```
-/
-├── overlays/production
-│   └── base
-│       └── base/a_service
-│           ├── deployment.yaml
-│           └── service.yaml
-└── overlays/staging
-    └── base
-        └── base/a_service
-            ├── deployment.yaml
-            └── service.yaml
 
+example/overlays/production
+└── example/base
+    └── example/base/a_service
+        ├── deployment.yaml
+        │   └── example/overlays/production/a_service/deployment.yaml(p)
+        └── service.yaml
+            └── example/overlays/production/a_service/service.yaml(p)
+
+example/overlays/staging
+└── example/base
+    └── example/base/a_service
+        ├── deployment.yaml
+        │   └── example/overlays/staging/a_service/deployment.yaml(p)
+        └── service.yaml
 ```

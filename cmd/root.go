@@ -54,7 +54,13 @@ You can open a dashboard in your browser and see a graph of dependencies represe
 		if err != nil {
 			return errors.Wrap(err, "cannot build graph")
 		}
-		graph.ToTree()
+
+		fmt.Println()
+		for _, tree := range graph.Resources {
+			tree.ToTree()
+			fmt.Println()
+		}
+
 		return nil
 	},
 }

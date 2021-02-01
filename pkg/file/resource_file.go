@@ -10,6 +10,9 @@ import (
 type ResourceFile struct {
 	ApiVersion string `yaml:"apiVersion"`
 	Kind       string `yaml:"kind"`
+	Metadata   struct {
+		Name string `yaml:"name"`
+	} `yaml:"metadata"`
 }
 
 // GetResourceFromFile attempts to read a yaml file from the given file name
