@@ -3,6 +3,7 @@ package graph
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/fatih/color"
 	"github.com/hourglasshoro/graphmize/pkg/file"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
@@ -51,12 +52,12 @@ func (g *Graph) ToTree() {
 
 // treeRecursion calls output for each hierarchy
 func treeRecursion(g *Graph, isLastLoopFlags []bool, patches map[int]*Graph, isRoot bool) {
-	output(g.FileName, isLastLoopFlags)
+	output(g.FileName, isLastLoopFlags, false)
 
 	for i, patch := range g.Patches {
 		_, ok := patches[i]
 		if ok && !isRoot {
-			output(patch.FileName+"(p)", append(isLastLoopFlags, []bool{true}...))
+			output(patch.FileName+"(p)", append(isLastLoopFlags, []bool{true}...), true)
 		}
 	}
 
@@ -74,7 +75,7 @@ func treeRecursion(g *Graph, isLastLoopFlags []bool, patches map[int]*Graph, isR
 }
 
 // output prints the result to the standard output
-func output(data string, isLastLoopFlags []bool) {
+func output(data string, isLastLoopFlags []bool, isPatch bool) {
 	pathLine := ""
 	maxCount := len(isLastLoopFlags)
 	for i := 0; i < maxCount; i++ {
@@ -93,8 +94,14 @@ func output(data string, isLastLoopFlags []bool) {
 			}
 		}
 	}
-	pathLine += data
-	fmt.Println(pathLine)
+	if isPatch {
+		c := color.New(color.FgCyan)
+		fmt.Print(pathLine)
+		_, _ = c.Println(data)
+	} else {
+		pathLine += data
+		fmt.Println(pathLine)
+	}
 }
 
 // Find determines if an element exists in the slice
