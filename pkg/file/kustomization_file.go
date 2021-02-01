@@ -13,7 +13,7 @@ type KustomizationFile struct {
 	Kind       string   `yaml:"kind"`
 	Resources  []string `yaml:"resources"`
 	//Patches               []string `yaml:"patches"`
-	//PatchesStrategicMerge []string `yaml:"patchesStrategicMerge"`
+	PatchesStrategicMerge []string `yaml:"patchesStrategicMerge"`
 }
 
 // KustomizationFileNames represents a list of allowed filenames that

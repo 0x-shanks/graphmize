@@ -13,10 +13,11 @@ import (
 )
 
 type Graph struct {
-	ApiVersion string  `json:"apiVersion"`
-	Kind       string  `json:"kind"`
-	FileName   string  `json:"fileName"`
-	Resources  []Graph `json:"resources"`
+	ApiVersion string   `json:"apiVersion"`
+	Kind       string   `json:"kind"`
+	FileName   string   `json:"fileName"`
+	Resources  []*Graph `json:"resources"`
+	Patches    map[int]*Graph
 	//Patches               []Graph
 	//PatchesStrategicMerge []Graph
 }
@@ -25,13 +26,15 @@ func NewGraph(
 	apiVersion string,
 	kind string,
 	fileName string,
-	resources []Graph,
+	resources []*Graph,
+	patches map[int]*Graph,
 ) *Graph {
 	graph := new(Graph)
 	graph.ApiVersion = apiVersion
 	graph.Kind = kind
 	graph.FileName = fileName
 	graph.Resources = resources
+	graph.Patches = patches
 	return graph
 }
 
@@ -43,13 +46,19 @@ func (g *Graph) Marshal() ([]byte, error) {
 
 // ToTree displays a tree structure
 func (g *Graph) ToTree() {
-	var isLastLoopFlags []bool
-	treeRecursion(g, isLastLoopFlags)
+	treeRecursion(g, []bool{}, g.Patches, true)
 }
 
 // treeRecursion calls output for each hierarchy
-func treeRecursion(g *Graph, isLastLoopFlags []bool) {
+func treeRecursion(g *Graph, isLastLoopFlags []bool, patches map[int]*Graph, isRoot bool) {
 	output(g.FileName, isLastLoopFlags)
+
+	for i, patch := range g.Patches {
+		_, ok := patches[i]
+		if ok && !isRoot {
+			output(patch.FileName+"(p)", append(isLastLoopFlags, []bool{true}...))
+		}
+	}
 
 	resources := g.Resources
 	maxCount := len(resources)
@@ -60,7 +69,7 @@ func treeRecursion(g *Graph, isLastLoopFlags []bool) {
 			isLastLoop = true
 		}
 		flags := append(isLastLoopFlags, []bool{isLastLoop}...)
-		treeRecursion(&resources[i], flags)
+		treeRecursion(resources[i], flags, patches, false)
 	}
 }
 
@@ -100,13 +109,17 @@ func Find(slice []string, val string) (bool, int) {
 
 // BuildGraph recursively explores the specified directory, builds a dependency tree, and returns it
 func BuildGraph(ctx file.Context, rootPath string) (*Graph, error) {
-	rootGraph := NewGraph("root", "root", "/", []Graph{})
+
+	rootGraph := NewGraph("root", "root", "/", []*Graph{}, nil)
 
 	// parentNodes determine if search should be skipped in BuildGraphFromDir
 	parentNodes := map[string]*Graph{}
 
 	// childNodes determine whether to put in parentNode
 	childNodes := map[string]*Graph{}
+
+	resourceNodes := map[string]*Graph{}
+	patchId := 0
 
 	err := afero.Walk(ctx.FileSystem, rootPath,
 		func(path string, info os.FileInfo, err error) error {
@@ -128,7 +141,7 @@ func BuildGraph(ctx file.Context, rootPath string) (*Graph, error) {
 						return errors.Wrap(err, "cannot get kustomization file")
 					}
 
-					graph, err := BuildGraphFromDir(ctx, rootPath, kustomizationFilePath, *kustomizationFile, parentNodes, childNodes)
+					graph, err := BuildGraphFromDir(ctx, rootPath, kustomizationFilePath, *kustomizationFile, &parentNodes, &childNodes, &resourceNodes, &patchId)
 					if err != nil {
 						return errors.Wrap(err, "cannot get graph")
 					}
@@ -147,15 +160,20 @@ func BuildGraph(ctx file.Context, rootPath string) (*Graph, error) {
 	}
 
 	for _, v := range parentNodes {
-		rootGraph.Resources = append(rootGraph.Resources, *v)
+		rootGraph.Resources = append(rootGraph.Resources, v)
 	}
 
 	return rootGraph, nil
 }
 
 // BuildGraphFromDir builds and returns a dependency tree from a kustomization file under the specified directory
-func BuildGraphFromDir(ctx file.Context, rootPath string, directoryPath string, kustomizationFile file.KustomizationFile, parentNodes map[string]*Graph, childNodes map[string]*Graph) (*Graph, error) {
-	var resources []Graph
+func BuildGraphFromDir(ctx file.Context, rootPath string, directoryPath string, kustomizationFile file.KustomizationFile, parentNodesPtr *map[string]*Graph, childNodesPtr *map[string]*Graph, resourceNodesPtr *map[string]*Graph, patchId *int) (*Graph, error) {
+	var resources []*Graph
+
+	parentNodes := *parentNodesPtr
+	childNodes := *childNodesPtr
+	resourceNodes := *resourceNodesPtr
+
 	for _, resource := range kustomizationFile.Resources {
 
 		resourcePath := path.Join(directoryPath, resource)
@@ -166,30 +184,30 @@ func BuildGraphFromDir(ctx file.Context, rootPath string, directoryPath string, 
 
 		isDir, err := afero.IsDir(ctx.FileSystem, resourcePath)
 		if !isExist || err != nil {
-			resources = append(resources, *NewGraph("Unknown Resource", "Unknown Resource", resource, []Graph{}))
+			resources = append(resources, NewGraph("Unknown Resource", "Unknown Resource", resource, []*Graph{}, nil))
 		} else if isDir {
 			// For directories
 
 			// If a file at this path is already registered as a parent when searching
 			if graph, isParent := parentNodes[resourcePath]; isParent {
 				delete(parentNodes, resourcePath)
-				resources = append(resources, *graph)
+				resources = append(resources, graph)
 
 				// Register nodes that have already been explored
 				childNodes[resourcePath] = graph
 			} else if graph, isChild := childNodes[resourcePath]; isChild {
 				// If a file at this path is already registered as a child when searching
-				resources = append(resources, *graph)
+				resources = append(resources, graph)
 			} else {
 				childKustomizationFile, err := ctx.GetKustomizationFromDirectory(resourcePath)
 				if err != nil {
 					return nil, errors.Wrap(err, "cannot get childKustomizationFile")
 				}
-				graph, err := BuildGraphFromDir(ctx, rootPath, resourcePath, *childKustomizationFile, parentNodes, childNodes)
+				graph, err := BuildGraphFromDir(ctx, rootPath, resourcePath, *childKustomizationFile, parentNodesPtr, childNodesPtr, resourceNodesPtr, patchId)
 				if err != nil {
 					return nil, errors.Wrap(err, "cannot buildGraph for childKustomizationFile")
 				}
-				resources = append(resources, *graph)
+				resources = append(resources, graph)
 
 				// Register nodes that have already been explored
 				childNodes[resourcePath] = graph
@@ -204,13 +222,46 @@ func BuildGraphFromDir(ctx file.Context, rootPath string, directoryPath string, 
 			if err != nil {
 				return nil, errors.Wrap(err, "cannot get childResourceFile")
 			}
-			resources = append(resources, *NewGraph(childResourceFile.ApiVersion, childResourceFile.Kind, resource, []Graph{}))
+			graph := NewGraph(childResourceFile.ApiVersion, childResourceFile.Kind, resource, []*Graph{}, map[int]*Graph{})
+			resources = append(resources, graph)
+			resourceNodes[childResourceFile.Metadata.Name] = graph
 		}
 	}
+
+	paches := map[int]*Graph{}
+	for _, patch := range kustomizationFile.PatchesStrategicMerge {
+		patchPath := path.Join(directoryPath, patch)
+		_, err := afero.Exists(ctx.FileSystem, patchPath)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot determine if patchPath exist")
+		}
+		patchResourceFile, err := ctx.GetResourceFromFile(patchPath)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot get patchResourceFile")
+		}
+		resource, ok := resourceNodes[patchResourceFile.Metadata.Name]
+
+		if ok {
+			// When the resource has already been registered
+			formRootPath, err := filepath.Rel(rootPath, patchPath)
+			if err != nil {
+				return nil, errors.Wrap(err, "cannot get patch path from root")
+			}
+			patchGraph := NewGraph(patchResourceFile.ApiVersion, patchResourceFile.Kind, formRootPath, []*Graph{}, map[int]*Graph{})
+			resource.Patches[*patchId] = patchGraph
+			//log.Printf("resource:%v, patch:%v, patchId:%d", resource.FileName, formRootPath, *patchId)
+			paches[*patchId] = patchGraph
+			*patchId++
+
+		} else {
+			// When the resource is not already registered
+		}
+	}
+
 	relPath, err := filepath.Rel(rootPath, directoryPath)
 	if err != nil {
 		return nil, err
 	}
-	graph := NewGraph(kustomizationFile.ApiVersion, kustomizationFile.Kind, relPath, resources)
+	graph := NewGraph(kustomizationFile.ApiVersion, kustomizationFile.Kind, relPath, resources, paches)
 	return graph, nil
 }
