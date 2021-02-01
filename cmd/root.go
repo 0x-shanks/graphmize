@@ -24,6 +24,7 @@ import (
 	"github.com/spf13/cobra"
 	"os"
 	"path"
+	"path/filepath"
 
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
@@ -50,7 +51,7 @@ You can open a dashboard in your browser and see a graph of dependencies represe
 		if err != nil {
 			return errors.Wrap(err, "cannot get current dir")
 		}
-		if source != "" {
+		if source != "" && !filepath.IsAbs(source) {
 			currentDir = path.Join(currentDir, source)
 		}
 		graph, err := graph.BuildGraph(*ctx, currentDir)
