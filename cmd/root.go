@@ -19,15 +19,13 @@ import (
 	"fmt"
 	"github.com/hourglasshoro/graphmize/pkg/file"
 	"github.com/hourglasshoro/graphmize/pkg/graph"
+	"github.com/hourglasshoro/graphmize/pkg/graph_path"
+	homedir "github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
-	"os"
-	"path"
-	"path/filepath"
-
-	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
+	"os"
 )
 
 var cfgFile string
@@ -48,13 +46,8 @@ You can open a dashboard in your browser and see a graph of dependencies represe
 		defaultFileSystem := afero.NewOsFs()
 		ctx := file.NewContext(defaultFileSystem)
 		currentDir, err := os.Getwd()
-		if err != nil {
-			return errors.Wrap(err, "cannot get current dir")
-		}
-		if source != "" && !filepath.IsAbs(source) {
-			currentDir = path.Join(currentDir, source)
-		}
-		graph, err := graph.BuildGraph(*ctx, currentDir)
+		graphDir := graph_path.Solve(source, currentDir)
+		graph, err := graph.BuildGraph(*ctx, graphDir)
 		if err != nil {
 			return errors.Wrap(err, "cannot build graph")
 		}
