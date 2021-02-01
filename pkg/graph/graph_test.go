@@ -55,7 +55,8 @@ kind: Deployment
 
 	dir := "app"
 	kustomizationFile, _ := file.NewFromFileSystem(fakeFileSystem).GetKustomizationFromDirectory(dir)
-	graph, err := BuildGraphFromDir(*ctx, "", dir, *kustomizationFile, map[string]*Graph{}, map[string]*Graph{})
+	patchId := 0
+	graph, err := BuildGraphFromDir(*ctx, "", dir, *kustomizationFile, &map[string]*Graph{}, &map[string]*Graph{}, &map[string]*Graph{}, &patchId)
 	assert.Nil(t, err)
 
 	expected := "a.yaml"
@@ -117,7 +118,8 @@ kind: Deployment
 
 	dir := "app/sub"
 	kustomizationFile, _ := file.NewFromFileSystem(fakeFileSystem).GetKustomizationFromDirectory(dir)
-	graph, err := BuildGraphFromDir(*ctx, "", dir, *kustomizationFile, map[string]*Graph{}, map[string]*Graph{})
+	patchId := 0
+	graph, err := BuildGraphFromDir(*ctx, "", dir, *kustomizationFile, &map[string]*Graph{}, &map[string]*Graph{}, &map[string]*Graph{}, &patchId)
 
 	assert.Nil(t, err)
 
