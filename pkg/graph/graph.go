@@ -127,8 +127,8 @@ func BuildGraph(ctx file.Context, rootPath string) (*Graph, error) {
 
 	// resourceNode is the data to determine the patch; map[metadata.name]*Node
 	resourceNodes := map[string]*Graph{}
-	// patchId is an Id to identify the patch that appeared
-	patchId := 0
+	// patchID is an Id to identify the patch that appeared
+	patchID := 0
 
 	err := afero.Walk(ctx.FileSystem, rootPath,
 		func(path string, info os.FileInfo, err error) error {
@@ -150,7 +150,7 @@ func BuildGraph(ctx file.Context, rootPath string) (*Graph, error) {
 						return errors.Wrap(err, "cannot get kustomization file")
 					}
 
-					graph, err := BuildGraphFromDir(ctx, rootPath, kustomizationFilePath, *kustomizationFile, &parentNodes, &childNodes, &resourceNodes, &patchId)
+					graph, err := BuildGraphFromDir(ctx, rootPath, kustomizationFilePath, *kustomizationFile, &parentNodes, &childNodes, &resourceNodes, &patchID)
 					if err != nil {
 						return errors.Wrap(err, "cannot get graph")
 					}
@@ -176,7 +176,7 @@ func BuildGraph(ctx file.Context, rootPath string) (*Graph, error) {
 }
 
 // BuildGraphFromDir builds and returns a dependency tree from a kustomization file under the specified directory
-func BuildGraphFromDir(ctx file.Context, rootPath string, directoryPath string, kustomizationFile file.KustomizationFile, parentNodesPtr *map[string]*Graph, childNodesPtr *map[string]*Graph, resourceNodesPtr *map[string]*Graph, patchId *int) (*Graph, error) {
+func BuildGraphFromDir(ctx file.Context, rootPath string, directoryPath string, kustomizationFile file.KustomizationFile, parentNodesPtr *map[string]*Graph, childNodesPtr *map[string]*Graph, resourceNodesPtr *map[string]*Graph, patchID *int) (*Graph, error) {
 	var resources []*Graph
 
 	parentNodes := *parentNodesPtr
@@ -212,7 +212,7 @@ func BuildGraphFromDir(ctx file.Context, rootPath string, directoryPath string, 
 				if err != nil {
 					return nil, errors.Wrap(err, "cannot get childKustomizationFile")
 				}
-				graph, err := BuildGraphFromDir(ctx, rootPath, resourcePath, *childKustomizationFile, parentNodesPtr, childNodesPtr, resourceNodesPtr, patchId)
+				graph, err := BuildGraphFromDir(ctx, rootPath, resourcePath, *childKustomizationFile, parentNodesPtr, childNodesPtr, resourceNodesPtr, patchID)
 				if err != nil {
 					return nil, errors.Wrap(err, "cannot buildGraph for childKustomizationFile")
 				}
@@ -243,7 +243,7 @@ func BuildGraphFromDir(ctx file.Context, rootPath string, directoryPath string, 
 		}
 	}
 
-	// Store the patchId; map[patchId]*Node
+	// Store the patchID; map[patchID]*Node
 	patches := map[int]*Graph{}
 
 	// Explore the paths passed by PatchesStrategicMerge
@@ -268,14 +268,14 @@ func BuildGraphFromDir(ctx file.Context, rootPath string, directoryPath string, 
 
 		if ok {
 			// When the resource has already been registered
-			resource.Patches[*patchId] = patchGraph
+			resource.Patches[*patchID] = patchGraph
 		} else {
 			// When a resource is not registered
 			resourceNodes[patchResourceFile.Metadata.Name] = NewGraph("", "", "", []*Graph{}, patches)
 		}
 
-		patches[*patchId] = patchGraph
-		*patchId++
+		patches[*patchID] = patchGraph
+		*patchID++
 	}
 
 	relPath, err := filepath.Rel(rootPath, directoryPath)
