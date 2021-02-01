@@ -9,10 +9,9 @@ import (
 
 // KustomizationFile represents a kustomization yaml file
 type KustomizationFile struct {
-	ApiVersion string   `yaml:"apiVersion"`
-	Kind       string   `yaml:"kind"`
-	Resources  []string `yaml:"resources"`
-	//Patches               []string `yaml:"patches"`
+	ApiVersion            string   `yaml:"apiVersion"`
+	Kind                  string   `yaml:"kind"`
+	Resources             []string `yaml:"resources"`
 	PatchesStrategicMerge []string `yaml:"patchesStrategicMerge"`
 }
 

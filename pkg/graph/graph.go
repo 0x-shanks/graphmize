@@ -13,16 +13,16 @@ import (
 	"strings"
 )
 
+// Graph represents a node that is a customization file or resource file
 type Graph struct {
 	ApiVersion string   `json:"apiVersion"`
 	Kind       string   `json:"kind"`
 	FileName   string   `json:"fileName"`
 	Resources  []*Graph `json:"resources"`
 	Patches    map[int]*Graph
-	//Patches               []Graph
-	//PatchesStrategicMerge []Graph
 }
 
+// NewGraph is Graph constructor
 func NewGraph(
 	apiVersion string,
 	kind string,
@@ -119,13 +119,15 @@ func BuildGraph(ctx file.Context, rootPath string) (*Graph, error) {
 
 	rootGraph := NewGraph("root", "root", "/", []*Graph{}, nil)
 
-	// parentNodes determine if search should be skipped in BuildGraphFromDir
+	// parentNodes determine if search should be skipped in BuildGraphFromDir; map[resourcePath]*Node
 	parentNodes := map[string]*Graph{}
 
-	// childNodes determine whether to put in parentNode
+	// childNodes determine whether to put in parentNode; map[resourcePath]*Node
 	childNodes := map[string]*Graph{}
 
+	// resourceNode is the data to determine the patch; map[metadata.name]*Node
 	resourceNodes := map[string]*Graph{}
+	// patchId is an Id to identify the patch that appeared
 	patchId := 0
 
 	err := afero.Walk(ctx.FileSystem, rootPath,
@@ -231,11 +233,20 @@ func BuildGraphFromDir(ctx file.Context, rootPath string, directoryPath string, 
 			}
 			graph := NewGraph(childResourceFile.ApiVersion, childResourceFile.Kind, resource, []*Graph{}, map[int]*Graph{})
 			resources = append(resources, graph)
+			// If the patch has already been found when searching for the kustomization file
+			resource, exist := resourceNodes[childResourceFile.Metadata.Name]
+			if exist {
+				// Patch IDs is stored in resource.Patch
+				graph.Patches = resource.Patches
+			}
 			resourceNodes[childResourceFile.Metadata.Name] = graph
 		}
 	}
 
-	paches := map[int]*Graph{}
+	// Store the patchId; map[patchId]*Node
+	patches := map[int]*Graph{}
+
+	// Explore the paths passed by PatchesStrategicMerge
 	for _, patch := range kustomizationFile.PatchesStrategicMerge {
 		patchPath := path.Join(directoryPath, patch)
 		_, err := afero.Exists(ctx.FileSystem, patchPath)
@@ -248,27 +259,29 @@ func BuildGraphFromDir(ctx file.Context, rootPath string, directoryPath string, 
 		}
 		resource, ok := resourceNodes[patchResourceFile.Metadata.Name]
 
+		formRootPath, err := filepath.Rel(rootPath, patchPath)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot get patch path from root")
+		}
+
+		patchGraph := NewGraph(patchResourceFile.ApiVersion, patchResourceFile.Kind, formRootPath, []*Graph{}, map[int]*Graph{})
+
 		if ok {
 			// When the resource has already been registered
-			formRootPath, err := filepath.Rel(rootPath, patchPath)
-			if err != nil {
-				return nil, errors.Wrap(err, "cannot get patch path from root")
-			}
-			patchGraph := NewGraph(patchResourceFile.ApiVersion, patchResourceFile.Kind, formRootPath, []*Graph{}, map[int]*Graph{})
 			resource.Patches[*patchId] = patchGraph
-			//log.Printf("resource:%v, patch:%v, patchId:%d", resource.FileName, formRootPath, *patchId)
-			paches[*patchId] = patchGraph
-			*patchId++
-
 		} else {
-			// When the resource is not already registered
+			// When a resource is not registered
+			resourceNodes[patchResourceFile.Metadata.Name] = NewGraph("", "", "", []*Graph{}, patches)
 		}
+
+		patches[*patchId] = patchGraph
+		*patchId++
 	}
 
 	relPath, err := filepath.Rel(rootPath, directoryPath)
 	if err != nil {
 		return nil, err
 	}
-	graph := NewGraph(kustomizationFile.ApiVersion, kustomizationFile.Kind, relPath, resources, paches)
+	graph := NewGraph(kustomizationFile.ApiVersion, kustomizationFile.Kind, relPath, resources, patches)
 	return graph, nil
 }
