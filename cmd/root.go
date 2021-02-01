@@ -46,6 +46,9 @@ You can open a dashboard in your browser and see a graph of dependencies represe
 		defaultFileSystem := afero.NewOsFs()
 		ctx := file.NewContext(defaultFileSystem)
 		currentDir, err := os.Getwd()
+		if err != nil {
+			return errors.Wrap(err, "cannot get current dir")
+		}
 		graphDir := graph_path.Solve(source, currentDir)
 		graph, err := graph.BuildGraph(*ctx, graphDir)
 		if err != nil {
