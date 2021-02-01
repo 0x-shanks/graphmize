@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"github.com/hourglasshoro/graphmize/pkg/file"
 	"github.com/hourglasshoro/graphmize/pkg/graph"
-	"github.com/hourglasshoro/graphmize/pkg/graph_path"
+	"github.com/hourglasshoro/graphmize/pkg/imput"
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
@@ -49,7 +49,7 @@ You can open a dashboard in your browser and see a graph of dependencies represe
 		if err != nil {
 			return errors.Wrap(err, "cannot get current dir")
 		}
-		graphDir := graph_path.Solve(source, currentDir)
+		graphDir := imput.Solve(source, currentDir)
 		graph, err := graph.BuildGraph(*ctx, graphDir)
 		if err != nil {
 			return errors.Wrap(err, "cannot build graph")

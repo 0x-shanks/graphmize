@@ -1,4 +1,4 @@
-package graph_path
+package imput
 
 import (
 	"github.com/stretchr/testify/assert"
