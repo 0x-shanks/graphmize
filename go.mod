@@ -3,7 +3,7 @@ module github.com/hourglasshoro/graphmize
 go 1.15
 
 require (
-	github.com/fatih/color v1.13.0
+	github.com/fatih/color v1.15.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/afero v1.6.0
